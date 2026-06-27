@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>方塊翻轉 · 周圍8格 · 動態尺寸</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: radial-gradient(ellipse at center, #0d1a26, #050a0f);
+            font-family: 'Segoe UI', 'PingFang TC', 'Courier New', monospace;
+            color: #e0f0ff;
+            user-select: none;
+            padding: 16px;
+        }
+
+        .game-container {
+            background: rgba(16, 32, 48, 0.9);
+            backdrop-filter: blur(8px);
+            padding: 24px 30px 28px;
+            border-radius: 48px 48px 36px 36px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(100, 200, 255, 0.06);
+            text-align: center;
+            border: 1px solid rgba(60, 140, 200, 0.12);
+            max-width: 850px;
+            width: 100%;
+        }
+
+        h1 {
+            font-weight: 300;
+            font-size: 2.2rem;
+            letter-spacing: 6px;
+            margin: 0 0 2px 0;
+            color: #b8e6ff;
+            text-shadow: 0 0 40px rgba(60, 180, 255, 0.08), 0 2px 0 #0a1a22;
+        }
+
+        .subhead {
+            font-size: 0.8rem;
+            opacity: 0.4;
+            margin-bottom: 14px;
+            border-bottom: 1px solid rgba(60, 140, 200, 0.06);
+            padding-bottom: 8px;
+            letter-spacing: 3px;
+            font-weight: 300;
+        }
+
+        /* ===== 控制列 ===== */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .controls select,
+        .controls button {
+            background: rgba(30, 55, 75, 0.5);
+            border: 1px solid rgba(60, 140, 200, 0.06);
+            color: #b8d4e8;
+            padding: 7px 18px;
+            border-radius: 60px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+            transition: all 0.1s ease;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .controls select:hover,
+        .controls button:hover {
+            transform: translateY(-2px);
+            background: rgba(50, 85, 115, 0.6);
+            color: white;
+        }
+
+        .controls select:active,
+        .controls button:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .controls select {
+            appearance: none;
+            padding-right: 30px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238ab0c8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .controls .new-map-btn {
+            background: linear-gradient(145deg, #1a6a40, #0f4a2a);
+            border-color: #3aaf7a;
+            color: #d4ffe0;
+            box-shadow: 0 4px 0 #0a2a18, 0 0 20px rgba(30, 150, 80, 0.08);
+        }
+
+        .controls .new-map-btn:hover {
+            background: #2a8a5a;
+        }
+
+        /* ===== 動作按鈕 ===== */
+        .action-bar {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            background: rgba(40, 65, 85, 0.4);
+            border: 1px solid rgba(60, 140, 200, 0.05);
+            color: #b8d4e8;
+            padding: 7px 18px;
+            border-radius: 60px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+            transition: all 0.1s ease;
+            letter-spacing: 0.5px;
+            font-family: inherit;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.15);
+        }
+
+        .action-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .action-btn.hint-btn {
+            background: linear-gradient(145deg, #b8860b, #8a6508);
+            border-color: #e8b830;
+            color: #fff6d0;
+            box-shadow: 0 4px 0 #5a4000, 0 0 20px rgba(184, 134, 11, 0.08);
+        }
+
+        .action-btn.auto-btn {
+            background: linear-gradient(145deg, #1a6a40, #0f4a2a);
+            border-color: #3aaf7a;
+            color: #d4ffe0;
+            box-shadow: 0 4px 0 #0a2a18, 0 0 20px rgba(30, 150, 80, 0.08);
+        }
+
+        .action-btn.auto-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 4px 0 #0a2a18;
+        }
+
+        .action-btn.rules-btn {
+            background: linear-gradient(145deg, #5a4a7a, #3a2a5a);
+            border-color: #8a7aaa;
+            color: #e8d8ff;
+            box-shadow: 0 4px 0 #2a1a3a, 0 0 20px rgba(120, 80, 180, 0.08);
+        }
+
+        .action-btn.rules-btn:hover {
+            background: #7a5a9a;
+        }
+
+        /* ===== 速度控制 ===== */
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 14px;
+            font-size: 0.8rem;
+            color: #6a9aaa;
+        }
+
+        .speed-control input[type="range"] {
+            width: 120px;
+            height: 4px;
+            -webkit-appearance: none;
+            background: #2a4a5a;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .speed-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #5ab08a;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(90, 176, 138, 0.3);
+        }
+
+        .speed-control span {
+            min-width: 60px;
+            text-align: center;
+            color: #b0d8e8;
+        }
+
+        /* ===== 主體布局 ===== */
+        .main-area {
+            display: flex;
+            gap: 20px;
+            align-items: stretch;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 6px auto 12px;
+        }
+
+        /* ===== 棋盤 ===== */
+        .grid-board {
+            display: grid;
+            gap: 8px;
+            background: rgba(12, 28, 42, 0.7);
+            padding: 14px;
+            border-radius: 24px;
+            box-shadow: inset 0 0 0 1px rgba(60, 140, 200, 0.08), inset 0 8px 20px rgba(0, 0, 0, 0.5);
+            width: fit-content;
+            backdrop-filter: blur(2px);
+            flex-shrink: 0;
+        }
+
+        .cell {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            transition: all 0.08s ease;
+            cursor: default;
+            border: 3px solid transparent;
+            box-sizing: border-box;
+            position: relative;
+            background: #1e3648;
+            box-shadow: 0 4px 0 #0f1e28, 0 3px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .cell.green {
+            background: radial-gradient(circle at 30% 30%, #5cdb8a, #2a9d5a);
+            border-color: rgba(120, 255, 180, 0.2);
+            box-shadow: 0 4px 0 #1a5a35, 0 0 20px rgba(60, 220, 120, 0.05);
+            cursor: pointer;
+        }
+
+        .cell.green:hover {
+            transform: scale(0.92);
+            filter: brightness(1.2);
+        }
+
+        .cell.green:active {
+            transform: translateY(4px) scale(0.92);
+            box-shadow: 0 1px 0 #1a5a35;
+        }
+
+        .cell.empty {
+            background: radial-gradient(circle at 30% 30%, #243e50, #14262f);
+            box-shadow: inset 0 0 0 2px rgba(60, 140, 200, 0.04), 0 2px 6px rgba(0, 0, 0, 0.2);
+            border-color: transparent;
+        }
+
+        .cell.empty.highlighted {
+            border: 3px solid #ff4757 !important;
+            box-shadow: 0 0 15px rgba(255, 70, 87, 0.15), inset 0 0 0 2px rgba(60, 140, 200, 0.03);
+            cursor: pointer;
+        }
+
+        .cell.empty.highlighted:hover {
+            transform: scale(0.92);
+            filter: brightness(1.15);
+        }
+
+        .cell.empty.highlighted:active {
+            transform: translateY(4px) scale(0.92);
+        }
+
+        .cell.hint-cell {
+            border: 4px solid #ffd700 !important;
+            box-shadow: 0 0 30px #ffd700, 0 0 60px rgba(255, 215, 0, 0.12) !important;
+            animation: pulse-gold 0.9s ease-in-out infinite alternate;
+            z-index: 10;
+        }
+
+        @keyframes pulse-gold {
+            0% { box-shadow: 0 0 15px #ffd700, 0 0 30px rgba(255, 215, 0, 0.08); }
+            100% { box-shadow: 0 0 40px #ffd700, 0 0 80px rgba(255, 215, 0, 0.2); }
+        }
+
+        .cell.hint-cell::after {
+            content: "👆";
+            position: absolute;
+            top: -22px;
+            right: -22px;
+            font-size: 28px;
+            filter: drop-shadow(0 0 10px #ffd700);
+            animation: finger-tap 0.8s ease-in-out infinite alternate;
+            pointer-events: none;
+        }
+
+        @keyframes finger-tap {
+            0% { transform: translateY(0px) scale(1) rotate(-5deg); }
+            100% { transform: translateY(10px) scale(1.15) rotate(5deg); }
+        }
+
+        .cell.auto-highlight {
+            border: 4px solid #00ff88 !important;
+            box-shadow: 0 0 35px #00ff88, 0 0 70px rgba(0, 255, 136, 0.12) !important;
+            animation: pulse-auto 0.45s ease-in-out 2;
+            z-index: 10;
+        }
+
+        @keyframes pulse-auto {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* ===== 代碼面板 ===== */
+        .code-panel {
+            background: rgba(8, 18, 30, 0.85);
+            border: 1px solid rgba(60, 180, 255, 0.08);
+            border-radius: 20px;
+            padding: 14px 16px;
+            min-width: 220px;
+            max-width: 280px;
+            flex: 1;
+            min-height: 350px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.4);
+            font-family: 'Courier New', monospace;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .code-panel::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff88, transparent);
+            opacity: 0.3;
+            animation: scanline 3s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { opacity: 0.1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 0.1; }
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(60, 180, 255, 0.06);
+            margin-bottom: 12px;
+            font-size: 0.7rem;
+            color: #4a7a8a;
+            letter-spacing: 1px;
+        }
+
+        .code-header .dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .code-header .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #2a4a5a;
+        }
+
+        .code-header .dot.red { background: #ff5f5f; }
+        .code-header .dot.yellow { background: #ffbd2e; }
+        .code-header .dot.green { background: #28c840; }
+
+        .code-body {
+            flex: 1;
+            overflow-y: auto;
+            font-size: 0.75rem;
+            line-height: 1.8;
+            color: #8ab0c8;
+            text-align: left;
+            padding-right: 4px;
+            max-height: 350px;
+            min-height: 280px;
+        }
+
+        .code-body::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .code-body::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        .code-body::-webkit-scrollbar-thumb {
+            background: #2a5a6a;
+            border-radius: 4px;
+        }
+
+        .code-line {
+            opacity: 0.3;
+            transition: all 0.15s;
+            padding: 1px 0;
+            border-left: 2px solid transparent;
+            padding-left: 8px;
+            font-size: 0.7rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .code-line.active {
+            opacity: 1;
+            color: #7ae0c0;
+            border-left-color: #00ff88;
+            background: rgba(0, 255, 136, 0.04);
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.08);
+        }
+
+        .code-line.done {
+            opacity: 0.6;
+            color: #4a8a7a;
+        }
+
+        .code-line .highlight {
+            color: #ffd700;
+        }
+
+        .code-line .var {
+            color: #ff7b7b;
+        }
+
+        .code-line .func {
+            color: #6ab0e6;
+        }
+
+        .code-line .num {
+            color: #d4a0ff;
+        }
+
+        .code-line .str {
+            color: #b8d68a;
+        }
+
+        .code-line .comment {
+            color: #4a6a5a;
+            font-style: italic;
+        }
+
+        .code-status {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(60, 180, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            color: #3a6a7a;
+            letter-spacing: 0.5px;
+        }
+
+        .code-status .progress {
+            color: #5ab08a;
+        }
+
+        /* ===== 狀態列 ===== */
+        .status-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(8, 22, 36, 0.5);
+            padding: 8px 18px;
+            border-radius: 60px;
+            margin-top: 14px;
+            border: 1px solid rgba(60, 140, 200, 0.04);
+            flex-wrap: wrap;
+            gap: 4px;
+            backdrop-filter: blur(4px);
+        }
+
+        .counter {
+            font-size: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 3px 16px;
+            border-radius: 40px;
+            font-weight: 400;
+            color: #b3e4ff;
+            border: 1px solid rgba(100, 200, 255, 0.03);
+            font-family: monospace;
+        }
+
+        .message {
+            font-size: 0.95rem;
+            font-weight: 300;
+            min-height: 1.8rem;
+            padding: 2px 8px;
+            color: #8ab8d0;
+            letter-spacing: 0.5px;
+        }
+
+        .message.win {
+            color: #5cdb8a;
+            text-shadow: 0 0 20px rgba(60, 220, 120, 0.15);
+        }
+
+        /* ============================================================
+              規則彈窗
+            ============================================================ */
+        .rules-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(6px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .rules-overlay.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: scale(0.96); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .rules-modal {
+            background: rgba(16, 32, 48, 0.96);
+            border: 1px solid rgba(60, 140, 200, 0.2);
+            border-radius: 32px;
+            padding: 32px 36px 28px;
+            max-width: 580px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.8);
+            position: relative;
+            color: #c8dce8;
+        }
+
+        .rules-modal::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .rules-modal::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        .rules-modal::-webkit-scrollbar-thumb {
+            background: #3a6a7a;
+            border-radius: 4px;
+        }
+
+        .rules-modal .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #6a9aaa;
+            font-size: 1.6rem;
+            cursor: pointer;
+            transition: 0.15s;
+            font-family: inherit;
+            line-height: 1;
+        }
+
+        .rules-modal .close-btn:hover {
+            color: #ff7b7b;
+            transform: rotate(90deg);
+        }
+
+        .rules-modal h2 {
+            font-weight: 300;
+            font-size: 1.6rem;
+            letter-spacing: 4px;
+            color: #b8e6ff;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(60, 140, 200, 0.08);
+            padding-bottom: 12px;
+        }
+
+        .rules-modal h3 {
+            font-weight: 400;
+            font-size: 1.05rem;
+            color: #8ac8e0;
+            margin: 18px 0 8px 0;
+            letter-spacing: 1px;
+        }
+
+        .rules-modal p,
+        .rules-modal li {
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: #b0c8d8;
+            font-weight: 300;
+        }
+
+        .rules-modal ul {
+            padding-left: 22px;
+            margin: 6px 0 4px 0;
+        }
+
+        .rules-modal li {
+            margin-bottom: 4px;
+        }
+
+        .rules-modal .highlight-green {
+            color: #5cdb8a;
+            font-weight: 400;
+        }
+
+        .rules-modal .highlight-red {
+            color: #ff4757;
+            font-weight: 400;
+        }
+
+        .rules-modal .highlight-gold {
+            color: #ffd700;
+            font-weight: 400;
+        }
+
+        .rules-modal .highlight-cyan {
+            color: #00ff88;
+            font-weight: 400;
+        }
+
+        .rules-modal .badge {
+            display: inline-block;
+            background: rgba(60, 140, 200, 0.1);
+            border: 1px solid rgba(60, 140, 200, 0.1);
+            border-radius: 12px;
+            padding: 0 10px;
+            font-size: 0.75rem;
+            color: #6a9aaa;
+            letter-spacing: 0.5px;
+        }
+
+        .rules-modal .divider {
+            border: none;
+            border-top: 1px solid rgba(60, 140, 200, 0.06);
+            margin: 16px 0;
+        }
+
+        /* ===== 響應式 ===== */
+        @media (max-width: 680px) {
+            .game-container { padding: 16px 16px 20px; border-radius: 32px; }
+            .cell { width: 42px; height: 42px; }
+            .grid-board { gap: 6px; padding: 10px; }
+            h1 { font-size: 1.6rem; letter-spacing: 4px; }
+            .cell.hint-cell::after { font-size: 20px; top: -16px; right: -16px; }
+            .action-btn { padding: 5px 12px; font-size: 0.75rem; }
+            .controls select,
+            .controls button { padding: 5px 14px; font-size: 0.8rem; }
+            .code-panel { min-width: 150px; max-width: 200px; min-height: 250px; }
+            .code-body { font-size: 0.65rem; min-height: 180px; max-height: 250px; }
+            .main-area { gap: 12px; }
+            .speed-control input[type="range"] { width: 80px; }
+            .rules-modal { padding: 24px 20px 20px; }
+            .rules-modal h2 { font-size: 1.3rem; }
+            .rules-modal p,
+            .rules-modal li { font-size: 0.82rem; }
+        }
+
+        @media (max-width: 480px) {
+            .cell { width: 34px; height: 34px; }
+            .grid-board { gap: 5px; padding: 8px; }
+            .code-panel { min-width: 120px; max-width: 160px; min-height: 200px; }
+            .code-body { font-size: 0.55rem; min-height: 140px; max-height: 200px; }
+            .code-header { font-size: 0.55rem; }
+            .status-area { padding: 4px 12px; }
+            .counter { font-size: 0.8rem; padding: 2px 12px; }
+            .message { font-size: 0.75rem; }
+            .rules-modal { padding: 18px 14px 16px; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <h1>⬛ 翻轉 · 方塊</h1>
+    <div class="subhead">✦ 周圍8格 · 動態尺寸 · 即時求解 ✦</div>
+
+    <div class="controls">
+        <select id="sizeSelect">
+            <option value="5">5×5</option>
+            <option value="6">6×6</option>
+            <option value="7">7×7</option>
+            <option value="8" selected>8×8</option>
+            <option value="9">9×9</option>
+            <option value="10">10×10</option>
+        </select>
+        <button class="new-map-btn" id="newMapBtn">⟳ 新地圖</button>
+    </div>
+
+    <div class="action-bar">
+        <button class="action-btn hint-btn" id="hintBtn">💡 提示</button>
+        <button class="action-btn auto-btn" id="autoBtn">⚡ 自動解題</button>
+        <button class="action-btn rules-btn" id="rulesBtn">📖 規則</button>
+    </div>
+
+    <div class="speed-control">
+        <span>🐢 慢</span>
+        <input type="range" id="speedSlider" min="200" max="1200" value="700" step="50">
+        <span>🐇 快</span>
+        <span id="speedDisplay">700ms</span>
+    </div>
+
+    <div class="main-area">
+        <div class="grid-board" id="board"></div>
+        <div class="code-panel" id="codePanel">
+            <div class="code-header">
+                <span>◈ EXECUTION LOG</span>
+                <div class="dots">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                </div>
+            </div>
+            <div class="code-body" id="codeBody">
+                <div class="code-line comment">// 等待生成地圖...</div>
+            </div>
+            <div class="code-status">
+                <span id="codeStep">步驟: 0 / 0</span>
+                <span class="progress" id="codeProgress">● 就緒</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-area">
+        <span class="counter" id="greenCounter">🟩 0</span>
+        <span class="message" id="gameMessage">▶ 點擊「新地圖」開始</span>
+    </div>
+</div>
+
+<!-- ===== 規則彈窗 ===== -->
+<div class="rules-overlay" id="rulesOverlay">
+    <div class="rules-modal">
+        <button class="close-btn" id="rulesCloseBtn">✕</button>
+        <h2>📖 規則與玩法</h2>
+
+        <h3>🎯 遊戲目標</h3>
+        <p>
+            點擊棋盤上的方塊，將所有 <span class="highlight-green">綠色方塊 🟩</span> 全部消除，
+            直到棋盤上沒有任何綠色方塊，即為獲勝。
+        </p>
+
+        <hr class="divider">
+
+        <h3>🖱️ 操作方式</h3>
+        <ul>
+            <li>點擊 <span class="highlight-green">綠色方塊</span> 或帶有 <span class="highlight-red">紅色框線</span> 的空格。</li>
+            <li>點擊後，該格與其 <strong>周圍 8 個相鄰格子</strong>（上下左右 + 四個斜角）會 <strong>翻轉</strong>：</li>
+            <ul>
+                <li><span class="highlight-green">綠色 → 空格</span></li>
+                <li><span class="highlight-cyan">空格 → 綠色</span></li>
+            </ul>
+            <li>只有 <span class="highlight-red">紅色框線</span> 標記的空格才能被點擊（表示其旁邊有綠色方塊）。</li>
+        </ul>
+
+        <hr class="divider">
+
+        <h3>🧠 輔助功能</h3>
+        <ul>
+            <li><span class="highlight-gold">💡 提示</span> — 顯示下一步該點擊的位置（金色閃爍 + 👆 手指）。</li>
+            <li><span class="highlight-cyan">⚡ 自動解題</span> — 一鍵執行完整解題步驟，速度可調。</li>
+            <li><span class="badge">🐢 慢 ↔ 🐇 快</span> 調整自動解題的執行速度。</li>
+        </ul>
+
+        <hr class="divider">
+
+        <h3>📐 地圖設定</h3>
+        <ul>
+            <li>支援尺寸：<strong>5×5 ～ 10×10</strong>（下拉選單切換）。</li>
+            <li>點擊 <span class="badge">⟳ 新地圖</span> 在當前尺寸下隨機生成一個 <strong>保證有解</strong> 的地圖。</li>
+            <li>每張地圖都由後台即時計算出最短解題路徑。</li>
+        </ul>
+
+        <hr class="divider">
+
+        <h3>💡 小技巧</h3>
+        <ul>
+            <li>先觀察綠色方塊的分佈，規劃點擊順序。</li>
+            <li>善用 <span class="highlight-gold">提示</span> 功能學習解題策略。</li>
+            <li>從角落或邊緣開始點擊，往往能更有效地消除方塊。</li>
+            <li>如果卡關，試試切換尺寸或生成新地圖。</li>
+        </ul>
+
+        <hr class="divider">
+
+        <p style="font-size:0.75rem; opacity:0.4; text-align:center; margin-top:6px;">
+            翻轉規則：自身 + 周圍 8 格 &nbsp;·&nbsp; 即時求解引擎 &nbsp;·&nbsp; 祝您遊玩愉快 🎮
+        </p>
+    </div>
+</div>
+
+<script>
+    (function() {
+        "use strict";
+
+        // --- DOM 元素 ---
+        const boardEl = document.getElementById('board');
+        const greenCounterEl = document.getElementById('greenCounter');
+        const gameMessageEl = document.getElementById('gameMessage');
+        const hintBtn = document.getElementById('hintBtn');
+        const autoBtn = document.getElementById('autoBtn');
+        const newMapBtn = document.getElementById('newMapBtn');
+        const sizeSelect = document.getElementById('sizeSelect');
+        const codeBody = document.getElementById('codeBody');
+        const codeStep = document.getElementById('codeStep');
+        const codeProgress = document.getElementById('codeProgress');
+        const speedSlider = document.getElementById('speedSlider');
+        const speedDisplay = document.getElementById('speedDisplay');
+        const rulesBtn = document.getElementById('rulesBtn');
+        const rulesOverlay = document.getElementById('rulesOverlay');
+        const rulesCloseBtn = document.getElementById('rulesCloseBtn');
+
+        // --- 規則彈窗控制 ---
+        function openRules() {
+            rulesOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeRules() {
+            rulesOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        rulesBtn.addEventListener('click', openRules);
+        rulesCloseBtn.addEventListener('click', closeRules);
+        rulesOverlay.addEventListener('click', function(e) {
+            if (e.target === this) closeRules();
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeRules();
+        });
+
+        // --- 狀態 ---
+        let board = [];
+        let solution = [];
+        let size = 8;
+        let isGameWon = false;
+        let currentHintIndex = -1;
+        let isAutoSolving = false;
+        let autoTimer = null;
+        let solutionSteps = [];
+        let currentStepIndex = 0;
+        let speedMs = 700;
+
+        // --- 速度 ---
+        speedSlider.addEventListener('input', function() {
+            speedMs = parseInt(this.value);
+            speedDisplay.textContent = speedMs + 'ms';
+        });
+
+        // ============================================================
+        // 1. 高斯消元 (GF(2)) - 周圍8格
+        // ============================================================
+        function buildMatrix(n) {
+            const N = n * n;
+            const A = [];
+            const dirs = [
+                [-1, -1], [-1, 0], [-1, 1],
+                [0, -1], [0, 0], [0, 1],
+                [1, -1], [1, 0], [1, 1]
+            ];
+            for (let i = 0; i < N; i++) {
+                const row = new Array(N).fill(0);
+                const r = Math.floor(i / n);
+                const c = i % n;
+                for (const [dr, dc] of dirs) {
+                    const nr = r + dr,
+                        nc = c + dc;
+                    if (nr >= 0 && nr < n && nc >= 0 && nc < n) {
+                        row[nr * n + nc] = 1;
+                    }
+                }
+                A.push(row);
+            }
+            return A;
+        }
+
+        function gaussSolve(A, b) {
+            const N = A.length;
+            const mat = A.map((row, i) => {
+                const newRow = row.slice();
+                newRow.push(b[i]);
+                return newRow;
+            });
+
+            let row = 0;
+            let col = 0;
+            const where = new Array(N).fill(-1);
+
+            while (row < N && col < N) {
+                let sel = row;
+                for (let i = row; i < N; i++) {
+                    if (mat[i][col] === 1) { sel = i; break; }
+                }
+                if (mat[sel][col] === 0) {
+                    col++;
+                    continue;
+                }
+                [mat[row], mat[sel]] = [mat[sel], mat[row]];
+                where[col] = row;
+                for (let i = 0; i < N; i++) {
+                    if (i !== row && mat[i][col] === 1) {
+                        for (let j = col; j <= N; j++) {
+                            mat[i][j] ^= mat[row][j];
+                        }
+                    }
+                }
+                row++;
+                col++;
+            }
+
+            for (let i = row; i < N; i++) {
+                if (mat[i][N] === 1) return null;
+            }
+
+            const x = new Array(N).fill(0);
+            for (let i = 0; i < N; i++) {
+                if (where[i] !== -1) {
+                    x[i] = mat[where[i]][N];
+                }
+            }
+            return x;
+        }
+
+        function generatePuzzle(n, maxAttempts) {
+            maxAttempts = maxAttempts || 100;
+            const N = n * n;
+            const A = buildMatrix(n);
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                const b = new Array(N).fill(0);
+                for (let i = 0; i < N; i++) {
+                    b[i] = Math.random() < 0.3 ? 1 : 0;
+                }
+                const greenCount = b.reduce((a, v) => a + v, 0);
+                if (greenCount < 2) continue;
+
+                const sol = gaussSolve(A, b);
+                if (sol !== null) {
+                    const stepCount = sol.reduce((a, v) => a + v, 0);
+                    if (stepCount > 0) {
+                        return { board: b, solution: sol };
+                    }
+                }
+            }
+            // 備用方案
+            const board = new Array(n * n).fill(0);
+            const solution = new Array(n * n).fill(0);
+            board[0] = 1;
+            solution[0] = 1;
+            return { board, solution };
+        }
+
+        // ============================================================
+        // 2. 遊戲邏輯
+        // ============================================================
+        function getNeighborCoords(row, col, n) {
+            const coords = [];
+            const dirs = [
+                [-1, -1], [-1, 0], [-1, 1],
+                [0, -1], [0, 0], [0, 1],
+                [1, -1], [1, 0], [1, 1]
+            ];
+            for (const [dr, dc] of dirs) {
+                const nr = row + dr,
+                    nc = col + dc;
+                if (nr >= 0 && nr < n && nc >= 0 && nc < n) {
+                    coords.push({ r: nr, c: nc });
+                }
+            }
+            return coords;
+        }
+
+        function idxToRC(idx, n) {
+            return { r: Math.floor(idx / n), c: idx % n };
+        }
+
+        function countGreen() {
+            return board.reduce((a, v) => a + (v ? 1 : 0), 0);
+        }
+
+        function performFlip(row, col) {
+            if (isGameWon) return false;
+            const idx = row * size + col;
+            if (!board[idx]) {
+                let hasGreen = false;
+                for (const { r, c } of getNeighborCoords(row, col, size)) {
+                    if (board[r * size + c]) { hasGreen = true; break; }
+                }
+                if (!hasGreen) return false;
+            }
+            for (const { r, c } of getNeighborCoords(row, col, size)) {
+                const i = r * size + c;
+                board[i] = !board[i];
+            }
+            if (countGreen() === 0) isGameWon = true;
+            renderBoard();
+            updateUI();
+            return true;
+        }
+
+        function renderBoard() {
+            const n = size;
+            boardEl.innerHTML = '';
+            boardEl.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+
+            const highlighted = new Array(n * n).fill(false);
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    const idx = r * n + c;
+                    if (board[idx]) {
+                        for (const { r: nr, c: nc } of getNeighborCoords(r, c, n)) {
+                            const nIdx = nr * n + nc;
+                            if (!board[nIdx]) highlighted[nIdx] = true;
+                        }
+                    }
+                }
+            }
+
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    const idx = r * n + c;
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.index = idx;
+
+                    if (board[idx]) {
+                        cell.classList.add('green');
+                        cell.addEventListener('click', (() => {
+                            const row = r,
+                                col = c;
+                            return () => { if (!isAutoSolving) { clearHint();
+                                    performFlip(row, col); } };
+                        })());
+                    } else if (highlighted[idx]) {
+                        cell.classList.add('empty', 'highlighted');
+                        cell.addEventListener('click', (() => {
+                            const row = r,
+                                col = c;
+                            return () => { if (!isAutoSolving) { clearHint();
+                                    performFlip(row, col); } };
+                        })());
+                    } else {
+                        cell.classList.add('empty');
+                    }
+                    boardEl.appendChild(cell);
+                }
+            }
+
+            if (currentHintIndex !== -1) {
+                const el = document.querySelector(`.cell[data-index="${currentHintIndex}"]`);
+                if (el && !isGameWon) el.classList.add('hint-cell');
+                else currentHintIndex = -1;
+            }
+        }
+
+        function updateUI() {
+            const count = countGreen();
+            greenCounterEl.textContent = `🟩 ${count}`;
+            if (isGameWon) {
+                setMessage('🎉 勝利！ 🎉', 'win');
+                clearHint();
+                stopAutoSolve();
+            } else if (!gameMessageEl.textContent.includes('💡') &&
+                !gameMessageEl.textContent.includes('⚡') &&
+                !gameMessageEl.textContent.includes('⚠️')) {
+                setMessage(`▶ 剩餘 ${count} 個方塊`, '');
+            }
+        }
+
+        function setMessage(text, cls) {
+            gameMessageEl.textContent = text;
+            gameMessageEl.className = 'message' + (cls ? ' ' + cls : '');
+        }
+
+        function clearHint() {
+            if (currentHintIndex !== -1) {
+                const el = document.querySelector(`.cell[data-index="${currentHintIndex}"]`);
+                if (el) el.classList.remove('hint-cell');
+                currentHintIndex = -1;
+            }
+        }
+
+        function showHint() {
+            if (isAutoSolving) { setMessage('⏳ 自動解題中...', ''); return; }
+            if (isGameWon) { setMessage('🎉 已勝利！', 'win'); return; }
+            clearHint();
+
+            let firstIdx = -1;
+            for (let i = 0; i < solution.length; i++) {
+                if (solution[i]) { firstIdx = i; break; }
+            }
+            if (firstIdx === -1) {
+                setMessage('⚠️ 無解題步驟', '');
+                return;
+            }
+
+            const { r, c } = idxToRC(firstIdx, size);
+            const idx = firstIdx;
+            const cellEl = document.querySelector(`.cell[data-index="${idx}"]`);
+            if (cellEl) {
+                cellEl.classList.add('hint-cell');
+                currentHintIndex = idx;
+                const total = solution.reduce((a, v) => a + (v ? 1 : 0), 0);
+                setMessage(`💡 點擊金色方塊 (共需 ${total} 步)`, '');
+                cellEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                updateCodePanel(0, total, 'idle', `<div class="code-line comment">// 提示: 第一步 (${r+1}, ${c+1})</div>`);
+            }
+        }
+
+        function startAutoSolve() {
+            if (isAutoSolving) return;
+            if (isGameWon) { setMessage('🎉 已勝利！', 'win'); return; }
+
+            const steps = [];
+            for (let i = 0; i < solution.length; i++) {
+                if (solution[i]) {
+                    const { r, c } = idxToRC(i, size);
+                    steps.push({ r, c });
+                }
+            }
+            if (steps.length === 0) {
+                setMessage('⚠️ 無解題步驟', '');
+                return;
+            }
+
+            solutionSteps = steps;
+            currentStepIndex = 0;
+            isAutoSolving = true;
+            autoBtn.disabled = true;
+            hintBtn.disabled = true;
+            updateCodePanel(0, steps.length, 'running');
+            setMessage(`⚡ 自動解題中... (${steps.length} 步)`, '');
+
+            function doNextStep() {
+                if (currentStepIndex >= solutionSteps.length || isGameWon) {
+                    isAutoSolving = false;
+                    autoBtn.disabled = false;
+                    hintBtn.disabled = false;
+                    if (isGameWon) {
+                        updateCodePanel(solutionSteps.length, solutionSteps.length, 'done');
+                        setMessage('🎉 自動解題完成！', 'win');
+                    } else {
+                        updateCodePanel(currentStepIndex, solutionSteps.length, 'stopped');
+                        setMessage('⏹ 已停止', '');
+                    }
+                    return;
+                }
+
+                const { r, c } = solutionSteps[currentStepIndex];
+                const idx = r * size + c;
+                const cellEl = document.querySelector(`.cell[data-index="${idx}"]`);
+                if (cellEl) {
+                    cellEl.classList.add('auto-highlight');
+                    setTimeout(() => { if (cellEl) cellEl.classList.remove('auto-highlight'); }, 400);
+                }
+
+                performFlip(r, c);
+                currentStepIndex++;
+                updateCodePanel(currentStepIndex, solutionSteps.length, 'running');
+
+                if (countGreen() === 0) {
+                    isGameWon = true;
+                    isAutoSolving = false;
+                    autoBtn.disabled = false;
+                    hintBtn.disabled = false;
+                    updateCodePanel(solutionSteps.length, solutionSteps.length, 'done');
+                    setMessage('🎉 自動解題完成！', 'win');
+                    renderBoard();
+                    updateUI();
+                    return;
+                }
+
+                autoTimer = setTimeout(doNextStep, speedMs);
+            }
+
+            autoTimer = setTimeout(doNextStep, speedMs);
+        }
+
+        function stopAutoSolve() {
+            if (autoTimer) { clearTimeout(autoTimer);
+                autoTimer = null; }
+            isAutoSolving = false;
+            autoBtn.disabled = false;
+            hintBtn.disabled = false;
+            if (!isGameWon) {
+                updateCodePanel(currentStepIndex, solutionSteps.length || 0, 'stopped');
+            }
+        }
+
+        function updateCodePanel(step, total, status, extraLines) {
+            const lines = [];
+            lines.push(`<div class="code-line comment">// === 即時求解引擎 ===</div>`);
+            lines.push(`<div class="code-line comment">// 尺寸: ${size}×${size}</div>`);
+            lines.push(`<div class="code-line comment">// 總步數: ${total}</div>`);
+            lines.push(`<div class="code-line comment">// --------------------</div>`);
+
+            if (extraLines) lines.push(extraLines);
+
+            if (status === 'running') {
+                const pct = total > 0 ? Math.round((step / total) * 100) : 0;
+                lines.push(`<div class="code-line active">▶ <span class="func">executing</span> step ${step}/${total} ...</div>`);
+                lines.push(`<div class="code-line active">  <span class="var">flip_8</span> <span class="comment">// 翻轉周圍8格</span></div>`);
+                lines.push(`<div class="code-line active">  <span class="str">progress</span> = ${pct}%</div>`);
+                const barLen = 20;
+                const filled = Math.round((pct / 100) * barLen);
+                const bar = '█'.repeat(filled) + '░'.repeat(barLen - filled);
+                lines.push(`<div class="code-line active">  [${bar}]</div>`);
+            } else if (status === 'done') {
+                lines.push(`<div class="code-line done">✓ <span class="func">complete</span> 所有方塊已消除</div>`);
+                lines.push(`<div class="code-line done">  <span class="str">status</span> = <span class="highlight">SUCCESS</span></div>`);
+                lines.push(`<div class="code-line done">  <span class="comment">// 執行完成 ✅</span></div>`);
+            } else if (status === 'idle') {
+                lines.push(`<div class="code-line comment">// 等待操作...</div>`);
+                lines.push(`<div class="code-line comment">// 點擊「⚡ 自動解題」或「💡 提示」</div>`);
+            } else if (status === 'stopped') {
+                lines.push(`<div class="code-line" style="color:#ff7b5a;">⏹ <span class="func">stopped</span> 已中斷</div>`);
+                lines.push(`<div class="code-line comment">// 執行至第 ${step} 步</div>`);
+            }
+
+            codeBody.innerHTML = lines.join('');
+            codeBody.scrollTop = codeBody.scrollHeight;
+            codeStep.textContent = `步驟: ${step} / ${total}`;
+            codeProgress.textContent = status === 'running' ? '● 執行中' :
+                status === 'done' ? '● 完成' :
+                status === 'stopped' ? '● 已停止' : '● 就緒';
+            codeProgress.style.color = status === 'running' ? '#5cdb8a' :
+                status === 'done' ? '#5cdb8a' :
+                status === 'stopped' ? '#ff7b5a' : '#4a7a8a';
+        }
+
+        function newPuzzle() {
+            stopAutoSolve();
+            const n = parseInt(sizeSelect.value);
+            size = n;
+            const puzzle = generatePuzzle(n, 100);
+            board = puzzle.board.map(v => v === 1);
+            solution = puzzle.solution.map(v => v === 1);
+            isGameWon = false;
+            currentHintIndex = -1;
+            solutionSteps = [];
+            currentStepIndex = 0;
+            renderBoard();
+            updateUI();
+            const total = solution.reduce((a, v) => a + (v ? 1 : 0), 0);
+            updateCodePanel(0, total, 'idle');
+            setMessage(`🔁 新 ${size}×${size} 地圖 (周圍8格)`, '');
+        }
+
+        // --- 事件綁定 ---
+        newMapBtn.addEventListener('click', newPuzzle);
+        sizeSelect.addEventListener('change', newPuzzle);
+        hintBtn.addEventListener('click', showHint);
+        autoBtn.addEventListener('click', () => {
+            if (isAutoSolving) { stopAutoSolve();
+                setMessage('⏹ 已停止', ''); return; }
+            startAutoSolve();
+        });
+
+        // --- 啟動 ---
+        newPuzzle();
+    })();
+</script>
+</body>
+</html>
